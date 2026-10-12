@@ -1,0 +1,16 @@
+{
+  "name": "todo-cli",
+  "version": "1.0.0",
+  "description": "Command-line client for the todo HTTP API",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "todo": "./bin/todo.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
