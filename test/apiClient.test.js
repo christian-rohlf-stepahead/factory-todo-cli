@@ -1,0 +1,126 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createApiClient, ApiConnectionError, ApiError } from '../src/apiClient.js';
+
+function jsonResponse(status, body) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: 'status text',
+    json: async () => body,
+  };
+}
+
+test('addTask posts the title and returns the created task', async () => {
+  let capturedUrl;
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedUrl = url;
+    capturedOptions = options;
+    return jsonResponse(201, { id: 1, title: 'Buy milk', done: false });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.addTask('Buy milk');
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks');
+  assert.equal(capturedOptions.method, 'POST');
+  assert.deepEqual(JSON.parse(capturedOptions.body), { title: 'Buy milk' });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false });
+});
+
+test('listTasks returns the array of tasks', async () => {
+  const fetchImpl = async () => jsonResponse(200, [{ id: 1, title: 'Buy milk', done: false }]);
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const tasks = await client.listTasks();
+
+  assert.deepEqual(tasks, [{ id: 1, title: 'Buy milk', done: false }]);
+});
+
+test('setTaskDone sends a PATCH with the desired status', async () => {
+  let capturedUrl;
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedUrl = url;
+    capturedOptions = options;
+    return jsonResponse(200, { id: 1, title: 'Buy milk', done: true });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.setTaskDone(1, true);
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks/1');
+  assert.equal(capturedOptions.method, 'PATCH');
+  assert.deepEqual(JSON.parse(capturedOptions.body), { done: true });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: true });
+});
+
+test('deleteTask sends a DELETE and tolerates an empty response body', async () => {
+  let capturedUrl;
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedUrl = url;
+    capturedOptions = options;
+    return { ok: true, status: 204, statusText: 'No Content', json: async () => { throw new Error('no body'); } };
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const result = await client.deleteTask(1);
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks/1');
+  assert.equal(capturedOptions.method, 'DELETE');
+  assert.equal(result, null);
+});
+
+test('a network failure raises a clear ApiConnectionError', async () => {
+  const fetchImpl = async () => {
+    throw new Error('connect ECONNREFUSED');
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  await assert.rejects(
+    () => client.listTasks(),
+    (err) => {
+      assert.ok(err instanceof ApiConnectionError);
+      assert.match(err.message, /http:\/\/localhost:3000/);
+      assert.match(err.message, /connect ECONNREFUSED/);
+      return true;
+    },
+  );
+});
+
+test('an error response with a JSON error field raises ApiError with that message', async () => {
+  const fetchImpl = async () => jsonResponse(404, { error: 'task 99 not found' });
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  await assert.rejects(
+    () => client.setTaskDone(99, true),
+    (err) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.status, 404);
+      assert.equal(err.message, 'task 99 not found');
+      return true;
+    },
+  );
+});
+
+test('an error response without a usable JSON body still raises a clear ApiError', async () => {
+  const fetchImpl = async () => ({
+    ok: false,
+    status: 500,
+    statusText: 'Internal Server Error',
+    json: async () => { throw new Error('not json'); },
+  });
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  await assert.rejects(
+    () => client.listTasks(),
+    (err) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.status, 500);
+      assert.match(err.message, /500/);
+      return true;
+    },
+  );
+});
