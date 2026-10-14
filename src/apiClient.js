@@ -43,16 +43,18 @@ async function request(baseUrl, path, options, fetchImpl) {
 
 export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
   return {
-    addTask(title) {
+    addTask(title, due) {
+      const body = due === undefined ? { title } : { title, due };
       return request(baseUrl, '/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
+        body: JSON.stringify(body),
       }, fetchImpl);
     },
 
-    listTasks() {
-      return request(baseUrl, '/tasks', { method: 'GET' }, fetchImpl);
+    listTasks({ overdue } = {}) {
+      const path = overdue ? '/tasks?overdue=true' : '/tasks';
+      return request(baseUrl, path, { method: 'GET' }, fetchImpl);
     },
 
     setTaskDone(id, done) {

@@ -29,6 +29,20 @@ test('addTask posts the title and returns the created task', async () => {
   assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false });
 });
 
+test('addTask sends the due date when one is given', async () => {
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return jsonResponse(201, { id: 1, title: 'Renew passport', done: false, due: '2026-11-01' });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.addTask('Renew passport', '2026-11-01');
+
+  assert.deepEqual(JSON.parse(capturedOptions.body), { title: 'Renew passport', due: '2026-11-01' });
+  assert.deepEqual(task, { id: 1, title: 'Renew passport', done: false, due: '2026-11-01' });
+});
+
 test('listTasks returns the array of tasks', async () => {
   const fetchImpl = async () => jsonResponse(200, [{ id: 1, title: 'Buy milk', done: false }]);
   const client = createApiClient('http://localhost:3000', fetchImpl);
@@ -36,6 +50,20 @@ test('listTasks returns the array of tasks', async () => {
   const tasks = await client.listTasks();
 
   assert.deepEqual(tasks, [{ id: 1, title: 'Buy milk', done: false }]);
+});
+
+test('listTasks requests the overdue filter when asked', async () => {
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return jsonResponse(200, [{ id: 2, title: 'Renew passport', done: false, due: '2026-01-01' }]);
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const tasks = await client.listTasks({ overdue: true });
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true');
+  assert.deepEqual(tasks, [{ id: 2, title: 'Renew passport', done: false, due: '2026-01-01' }]);
 });
 
 test('setTaskDone sends a PATCH with the desired status', async () => {
