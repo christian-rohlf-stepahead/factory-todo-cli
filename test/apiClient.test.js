@@ -43,6 +43,20 @@ test('addTask sends the due date when one is given', async () => {
   assert.deepEqual(task, { id: 1, title: 'Renew passport', done: false, due: '2026-11-01' });
 });
 
+test('addTask sends the priority when one is given', async () => {
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return jsonResponse(201, { id: 1, title: 'Buy milk', done: false, priority: 'high' });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.addTask('Buy milk', undefined, 'high');
+
+  assert.deepEqual(JSON.parse(capturedOptions.body), { title: 'Buy milk', priority: 'high' });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, priority: 'high' });
+});
+
 test('listTasks returns the array of tasks', async () => {
   const fetchImpl = async () => jsonResponse(200, [{ id: 1, title: 'Buy milk', done: false }]);
   const client = createApiClient('http://localhost:3000', fetchImpl);
@@ -64,6 +78,20 @@ test('listTasks requests the overdue filter when asked', async () => {
 
   assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true');
   assert.deepEqual(tasks, [{ id: 2, title: 'Renew passport', done: false, due: '2026-01-01' }]);
+});
+
+test('listTasks requests the priority filter when asked', async () => {
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return jsonResponse(200, [{ id: 2, title: 'Renew passport', done: false, priority: 'high' }]);
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const tasks = await client.listTasks({ priority: 'high' });
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?priority=high');
+  assert.deepEqual(tasks, [{ id: 2, title: 'Renew passport', done: false, priority: 'high' }]);
 });
 
 test('setTaskDone sends a PATCH with the desired status', async () => {

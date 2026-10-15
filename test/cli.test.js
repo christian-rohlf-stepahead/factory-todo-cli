@@ -54,6 +54,70 @@ test('add --due sends the due date and shows it on the created task', async () =
   assert.deepEqual(err, []);
 });
 
+test('add --priority sends the level and shows it on the created task', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let capturedBody;
+  const fetchImpl = async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      status: 201,
+      statusText: 'Created',
+      json: async () => ({ id: 1, title: 'Renew passport', done: false, priority: 'high' }),
+    };
+  };
+
+  const exitCode = await run(
+    ['add', 'Renew', 'passport', '--priority', 'high'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(capturedBody, { title: 'Renew passport', priority: 'high' });
+  assert.deepEqual(out, ['Added task 1  [ ] Renew passport (priority: high)']);
+  assert.deepEqual(err, []);
+});
+
+test('add without --priority creates a task at the default priority and the confirmation reflects it', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 201,
+    statusText: 'Created',
+    json: async () => ({ id: 1, title: 'Buy milk', done: false, priority: 'normal' }),
+  });
+
+  const exitCode = await run(['add', 'Buy', 'milk'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(out, ['Added task 1  [ ] Buy milk']);
+  assert.deepEqual(err, []);
+});
+
+test('add --priority with an invalid level surfaces the API error and creates no todo', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let called = false;
+  const fetchImpl = async () => {
+    called = true;
+    return {
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      json: async () => ({ error: '"priority" must be one of "low", "normal", or "high".' }),
+    };
+  };
+
+  const exitCode = await run(
+    ['add', 'Renew', 'passport', '--priority', 'urgent'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(called, true);
+  assert.equal(exitCode, 1);
+  assert.deepEqual(out, []);
+  assert.deepEqual(err, ['Error: "priority" must be one of "low", "normal", or "high".']);
+});
+
 test('add --due with an invalid date surfaces the API error and creates no todo', async () => {
   const { stdout, stderr, out, err } = captureOutput();
   let called = false;
@@ -114,6 +178,60 @@ test('list --overdue calls the overdue filter and prints exactly what the API re
   assert.equal(exitCode, 0);
   assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true');
   assert.deepEqual(out, ['2  [ ] Renew passport (due: 2026-01-01)']);
+});
+
+test('list --priority calls the priority filter and prints exactly what the API returns', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ([{ id: 2, title: 'Renew passport', done: false, priority: 'high' }]),
+    };
+  };
+
+  const exitCode = await run(['list', '--priority', 'high'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?priority=high');
+  assert.deepEqual(out, ['2  [ ] Renew passport (priority: high)']);
+});
+
+test('list --priority with an invalid level surfaces the API error instead of crashing', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  const fetchImpl = async () => ({
+    ok: false,
+    status: 400,
+    statusText: 'Bad Request',
+    json: async () => ({ error: '"priority" must be one of "low", "normal", or "high".' }),
+  });
+
+  const exitCode = await run(['list', '--priority', 'urgent'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(out, []);
+  assert.deepEqual(err, ['Error: "priority" must be one of "low", "normal", or "high".']);
+});
+
+test('list omits priority from the printed line when it is normal, but shows it otherwise', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ([
+      { id: 1, title: 'Buy milk', done: false, priority: 'normal' },
+      { id: 2, title: 'Renew passport', done: false, priority: 'low' },
+    ]),
+  });
+
+  const exitCode = await run(['list'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(out, ['1  [ ] Buy milk', '2  [ ] Renew passport (priority: low)']);
 });
 
 test('list prints each task with ID, title, and status', async () => {

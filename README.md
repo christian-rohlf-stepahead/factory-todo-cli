@@ -21,8 +21,10 @@ export TODO_API_URL=http://localhost:3000   # the address your todo-api is liste
 
 node bin/todo.js add "Buy milk"
 node bin/todo.js add "Renew passport" --due 2026-11-01
+node bin/todo.js add "Fix the leak" --priority high
 node bin/todo.js list
 node bin/todo.js list --overdue
+node bin/todo.js list --priority high
 node bin/todo.js complete 1
 node bin/todo.js reopen 1
 node bin/todo.js delete 1
@@ -30,20 +32,30 @@ node bin/todo.js delete 1
 
 ## Commands
 
-| Command                           | Description                                         |
-|-------------------------------------|-------------------------------------------------------|
-| `add <title> [--due YYYY-MM-DD]`    | Create a new task, optionally with a due date.      |
-| `list [--overdue]`                  | Show every task, or only the overdue ones.          |
-| `complete <id>`                     | Mark a task as done.                                |
-| `reopen <id>`                       | Mark a task as not done.                            |
-| `delete <id>`                       | Delete a task.                                      |
+| Command                                                  | Description                                                    |
+|-----------------------------------------------------------|--------------------------------------------------------------------|
+| `add <title> [--due YYYY-MM-DD] [--priority <level>]`    | Create a new task, optionally with a due date and priority.    |
+| `list [--overdue] [--priority <level>]`                  | Show every task, optionally filtered by overdue or priority.   |
+| `complete <id>`                                          | Mark a task as done.                                            |
+| `reopen <id>`                                            | Mark a task as not done.                                        |
+| `delete <id>`                                            | Delete a task.                                                  |
 
 Tasks are printed as `<id>  [x] <title>` for done tasks and `<id>  [ ] <title>`
 for open tasks. A task with a due date has `(due: YYYY-MM-DD)` appended, for
-example `<id>  [ ] <title> (due: 2026-11-01)`.
+example `<id>  [ ] <title> (due: 2026-11-01)`. A task whose priority isn't the
+default `normal` has `(priority: <level>)` appended, for example
+`<id>  [ ] <title> (priority: high)`.
 
 `list --overdue` asks the API for only the todos that are not done and past
 their due date, and prints exactly what it returns.
+
+`add --priority <level>` sends the level (`low`, `normal`, or `high`) to the
+API when creating the task; omitting it leaves the task at the API's default
+priority (`normal`). `list --priority <level>` asks the API for only the
+todos at that priority level (`GET /tasks?priority=<level>`) and prints
+exactly what it returns. An invalid level passed to either command is not
+checked by the CLI; the API's error surfaces the same way an invalid `--due`
+value does.
 
 If the API can't be reached, or it responds with an error (for example, an
 unknown task ID), the CLI prints a message starting with `Error:` to stderr

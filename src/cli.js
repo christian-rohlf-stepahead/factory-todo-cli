@@ -3,14 +3,15 @@ import { createApiClient } from './apiClient.js';
 export function formatTask(task) {
   const marker = task.done ? '[x]' : '[ ]';
   const due = task.due ? ` (due: ${task.due})` : '';
-  return `${task.id}  ${marker} ${task.title}${due}`;
+  const priority = task.priority && task.priority !== 'normal' ? ` (priority: ${task.priority})` : '';
+  return `${task.id}  ${marker} ${task.title}${due}${priority}`;
 }
 
 const USAGE = `Usage: todo <command> [arguments]
 
 Commands:
-  add <title> [--due YYYY-MM-DD]   Add a new task, optionally with a due date
-  list [--overdue]                 List all tasks, or only overdue ones
+  add <title> [--due YYYY-MM-DD] [--priority <level>]   Add a new task, optionally with a due date and priority
+  list [--overdue] [--priority <level>]                 List all tasks, optionally filtered by overdue or priority
   complete <id>                    Mark a task as done
   reopen <id>                      Mark a task as not done
   delete <id>                      Delete a task`;
@@ -23,27 +24,44 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
     switch (command) {
       case 'add': {
         let due;
+        let priority;
         let titleArgs = args;
-        const dueIndex = args.indexOf('--due');
+        const dueIndex = titleArgs.indexOf('--due');
         if (dueIndex !== -1) {
-          due = args[dueIndex + 1];
+          due = titleArgs[dueIndex + 1];
           if (!due) {
-            throw new Error('Usage: todo add <title> [--due YYYY-MM-DD]');
+            throw new Error('Usage: todo add <title> [--due YYYY-MM-DD] [--priority <level>]');
           }
-          titleArgs = [...args.slice(0, dueIndex), ...args.slice(dueIndex + 2)];
+          titleArgs = [...titleArgs.slice(0, dueIndex), ...titleArgs.slice(dueIndex + 2)];
+        }
+        const priorityIndex = titleArgs.indexOf('--priority');
+        if (priorityIndex !== -1) {
+          priority = titleArgs[priorityIndex + 1];
+          if (!priority) {
+            throw new Error('Usage: todo add <title> [--due YYYY-MM-DD] [--priority <level>]');
+          }
+          titleArgs = [...titleArgs.slice(0, priorityIndex), ...titleArgs.slice(priorityIndex + 2)];
         }
         const title = titleArgs.join(' ').trim();
         if (!title) {
-          throw new Error('Usage: todo add <title> [--due YYYY-MM-DD]');
+          throw new Error('Usage: todo add <title> [--due YYYY-MM-DD] [--priority <level>]');
         }
-        const task = await client.addTask(title, due);
+        const task = await client.addTask(title, due, priority);
         stdout(`Added task ${formatTask(task)}`);
         return 0;
       }
 
       case 'list': {
         const overdue = args.includes('--overdue');
-        const tasks = await client.listTasks({ overdue });
+        let priority;
+        const priorityIndex = args.indexOf('--priority');
+        if (priorityIndex !== -1) {
+          priority = args[priorityIndex + 1];
+          if (!priority) {
+            throw new Error('Usage: todo list [--overdue] [--priority <level>]');
+          }
+        }
+        const tasks = await client.listTasks({ overdue, priority });
         if (tasks.length === 0) {
           stdout('No tasks.');
         } else {
