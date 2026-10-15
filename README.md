@@ -20,7 +20,9 @@ commands with `node bin/todo.js`:
 export TODO_API_URL=http://localhost:3000   # the address your todo-api is listening on
 
 node bin/todo.js add "Buy milk"
+node bin/todo.js add "Renew passport" --due 2026-11-01
 node bin/todo.js list
+node bin/todo.js list --overdue
 node bin/todo.js complete 1
 node bin/todo.js reopen 1
 node bin/todo.js delete 1
@@ -28,16 +30,20 @@ node bin/todo.js delete 1
 
 ## Commands
 
-| Command             | Description                              |
-|----------------------|-------------------------------------------|
-| `add <title>`        | Create a new task with the given title.   |
-| `list`                | Show every task with its ID, status and title. |
-| `complete <id>`       | Mark a task as done.                      |
-| `reopen <id>`         | Mark a task as not done.                  |
-| `delete <id>`         | Delete a task.                            |
+| Command                           | Description                                         |
+|-------------------------------------|-------------------------------------------------------|
+| `add <title> [--due YYYY-MM-DD]`    | Create a new task, optionally with a due date.      |
+| `list [--overdue]`                  | Show every task, or only the overdue ones.          |
+| `complete <id>`                     | Mark a task as done.                                |
+| `reopen <id>`                       | Mark a task as not done.                            |
+| `delete <id>`                       | Delete a task.                                      |
 
 Tasks are printed as `<id>  [x] <title>` for done tasks and `<id>  [ ] <title>`
-for open tasks.
+for open tasks. A task with a due date has `(due: YYYY-MM-DD)` appended, for
+example `<id>  [ ] <title> (due: 2026-11-01)`.
+
+`list --overdue` asks the API for only the todos that are not done and past
+their due date, and prints exactly what it returns.
 
 If the API can't be reached, or it responds with an error (for example, an
 unknown task ID), the CLI prints a message starting with `Error:` to stderr

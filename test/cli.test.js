@@ -30,6 +30,92 @@ test('add prints the created task in a human-readable form', async () => {
   assert.deepEqual(err, []);
 });
 
+test('add --due sends the due date and shows it on the created task', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let capturedBody;
+  const fetchImpl = async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      status: 201,
+      statusText: 'Created',
+      json: async () => ({ id: 1, title: 'Renew passport', done: false, due: '2026-11-01' }),
+    };
+  };
+
+  const exitCode = await run(
+    ['add', 'Renew', 'passport', '--due', '2026-11-01'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(capturedBody, { title: 'Renew passport', due: '2026-11-01' });
+  assert.deepEqual(out, ['Added task 1  [ ] Renew passport (due: 2026-11-01)']);
+  assert.deepEqual(err, []);
+});
+
+test('add --due with an invalid date surfaces the API error and creates no todo', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let called = false;
+  const fetchImpl = async () => {
+    called = true;
+    return {
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      json: async () => ({ error: 'due must be a valid YYYY-MM-DD date' }),
+    };
+  };
+
+  const exitCode = await run(
+    ['add', 'Renew', 'passport', '--due', 'not-a-date'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(called, true);
+  assert.equal(exitCode, 1);
+  assert.deepEqual(out, []);
+  assert.deepEqual(err, ['Error: due must be a valid YYYY-MM-DD date']);
+});
+
+test('list shows due date when present and nothing extra when absent', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ([
+      { id: 1, title: 'Buy milk', done: false },
+      { id: 2, title: 'Renew passport', done: false, due: '2026-11-01' },
+    ]),
+  });
+
+  const exitCode = await run(['list'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(out, ['1  [ ] Buy milk', '2  [ ] Renew passport (due: 2026-11-01)']);
+});
+
+test('list --overdue calls the overdue filter and prints exactly what the API returns', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ([{ id: 2, title: 'Renew passport', done: false, due: '2026-01-01' }]),
+    };
+  };
+
+  const exitCode = await run(['list', '--overdue'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true');
+  assert.deepEqual(out, ['2  [ ] Renew passport (due: 2026-01-01)']);
+});
+
 test('list prints each task with ID, title, and status', async () => {
   const { stdout, stderr, out } = captureOutput();
   const fetchImpl = async () => ({
