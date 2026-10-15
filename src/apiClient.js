@@ -43,8 +43,10 @@ async function request(baseUrl, path, options, fetchImpl) {
 
 export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
   return {
-    addTask(title, due) {
-      const body = due === undefined ? { title } : { title, due };
+    addTask(title, due, tags) {
+      const body = { title };
+      if (due !== undefined) body.due = due;
+      if (tags !== undefined) body.tags = tags;
       return request(baseUrl, '/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

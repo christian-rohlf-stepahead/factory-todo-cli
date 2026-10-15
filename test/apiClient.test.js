@@ -43,6 +43,20 @@ test('addTask sends the due date when one is given', async () => {
   assert.deepEqual(task, { id: 1, title: 'Renew passport', done: false, due: '2026-11-01' });
 });
 
+test('addTask sends tags when given', async () => {
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return jsonResponse(201, { id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.addTask('Buy milk', undefined, ['home', 'urgent']);
+
+  assert.deepEqual(JSON.parse(capturedOptions.body), { title: 'Buy milk', tags: ['home', 'urgent'] });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] });
+});
+
 test('listTasks returns the array of tasks', async () => {
   const fetchImpl = async () => jsonResponse(200, [{ id: 1, title: 'Buy milk', done: false }]);
   const client = createApiClient('http://localhost:3000', fetchImpl);

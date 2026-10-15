@@ -3,17 +3,20 @@ import { createApiClient } from './apiClient.js';
 export function formatTask(task) {
   const marker = task.done ? '[x]' : '[ ]';
   const due = task.due ? ` (due: ${task.due})` : '';
-  return `${task.id}  ${marker} ${task.title}${due}`;
+  const tags = task.tags && task.tags.length > 0 ? ` (tags: ${task.tags.join(', ')})` : '';
+  return `${task.id}  ${marker} ${task.title}${due}${tags}`;
 }
+
+const ADD_USAGE = 'Usage: todo add <title> [--due YYYY-MM-DD] [--tag <tag>]...';
 
 const USAGE = `Usage: todo <command> [arguments]
 
 Commands:
-  add <title> [--due YYYY-MM-DD]   Add a new task, optionally with a due date
-  list [--overdue]                 List all tasks, or only overdue ones
-  complete <id>                    Mark a task as done
-  reopen <id>                      Mark a task as not done
-  delete <id>                      Delete a task`;
+  add <title> [--due YYYY-MM-DD] [--tag <tag>]...   Add a new task, optionally with a due date and tags
+  list [--overdue]                                  List all tasks, or only overdue ones
+  complete <id>                                     Mark a task as done
+  reopen <id>                                       Mark a task as not done
+  delete <id>                                       Delete a task`;
 
 export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stderr = console.error } = {}) {
   const client = createApiClient(baseUrl, fetchImpl);
@@ -23,20 +26,29 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
     switch (command) {
       case 'add': {
         let due;
-        let titleArgs = args;
-        const dueIndex = args.indexOf('--due');
-        if (dueIndex !== -1) {
-          due = args[dueIndex + 1];
-          if (!due) {
-            throw new Error('Usage: todo add <title> [--due YYYY-MM-DD]');
+        const tags = [];
+        const titleArgs = [];
+        for (let i = 0; i < args.length; i++) {
+          if (args[i] === '--due') {
+            due = args[++i];
+            if (!due) {
+              throw new Error(ADD_USAGE);
+            }
+          } else if (args[i] === '--tag') {
+            const tag = args[++i];
+            if (!tag) {
+              throw new Error(ADD_USAGE);
+            }
+            tags.push(tag);
+          } else {
+            titleArgs.push(args[i]);
           }
-          titleArgs = [...args.slice(0, dueIndex), ...args.slice(dueIndex + 2)];
         }
         const title = titleArgs.join(' ').trim();
         if (!title) {
-          throw new Error('Usage: todo add <title> [--due YYYY-MM-DD]');
+          throw new Error(ADD_USAGE);
         }
-        const task = await client.addTask(title, due);
+        const task = await client.addTask(title, due, tags.length > 0 ? tags : undefined);
         stdout(`Added task ${formatTask(task)}`);
         return 0;
       }
