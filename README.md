@@ -31,13 +31,13 @@ node bin/todo.js delete 1
 | Command             | Description                              |
 |----------------------|-------------------------------------------|
 | `add <title>`        | Create a new task with the given title.   |
-| `list`                | Show every task's ID, status, and title.  |
+| `list`                | Show every task with its ID, status and title. |
 | `complete <id>`       | Mark a task as done.                      |
 | `reopen <id>`         | Mark a task as not done.                  |
 | `delete <id>`         | Delete a task.                            |
 
 Tasks are printed as `<id>  [x] <title>` for done tasks and `<id>  [ ] <title>`
-for tasks that aren't done yet.
+for open tasks.
 
 If the API can't be reached, or it responds with an error (for example, an
 unknown task ID), the CLI prints a message starting with `Error:` to stderr
