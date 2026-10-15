@@ -80,6 +80,33 @@ test('listTasks requests the overdue filter when asked', async () => {
   assert.deepEqual(tasks, [{ id: 2, title: 'Renew passport', done: false, due: '2026-01-01' }]);
 });
 
+test('listTasks requests the tag filter when asked', async () => {
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return jsonResponse(200, [{ id: 1, title: 'Buy milk', done: false, tags: ['home'] }]);
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const tasks = await client.listTasks({ tag: 'home' });
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?tag=home');
+  assert.deepEqual(tasks, [{ id: 1, title: 'Buy milk', done: false, tags: ['home'] }]);
+});
+
+test('listTasks combines the overdue and tag filters when both are asked', async () => {
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return jsonResponse(200, []);
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  await client.listTasks({ overdue: true, tag: 'home' });
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true&tag=home');
+});
+
 test('setTaskDone sends a PATCH with the desired status', async () => {
   let capturedUrl;
   let capturedOptions;

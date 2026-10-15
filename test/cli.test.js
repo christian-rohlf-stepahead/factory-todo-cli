@@ -221,6 +221,44 @@ test('list shows tags when present and nothing extra when absent', async () => {
   assert.deepEqual(out, ['1  [ ] Buy milk (tags: home, urgent)', '2  [x] Clean house']);
 });
 
+test('list --tag calls the tag filter and prints exactly what the API returns', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ([{ id: 1, title: 'Buy milk', done: false, tags: ['home'] }]),
+    };
+  };
+
+  const exitCode = await run(['list', '--tag', 'home'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?tag=home');
+  assert.deepEqual(out, ['1  [ ] Buy milk (tags: home)']);
+});
+
+test('list --overdue --tag combines both filters', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return { ok: true, status: 200, statusText: 'OK', json: async () => [] };
+  };
+
+  const exitCode = await run(
+    ['list', '--overdue', '--tag', 'home'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true&tag=home');
+  assert.deepEqual(out, ['No tasks.']);
+});
+
 test('list reports when there are no tasks', async () => {
   const { stdout, stderr, out } = captureOutput();
   const fetchImpl = async () => ({ ok: true, status: 200, statusText: 'OK', json: async () => [] });

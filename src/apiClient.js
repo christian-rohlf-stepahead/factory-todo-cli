@@ -54,8 +54,12 @@ export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
       }, fetchImpl);
     },
 
-    listTasks({ overdue } = {}) {
-      const path = overdue ? '/tasks?overdue=true' : '/tasks';
+    listTasks({ overdue, tag } = {}) {
+      const params = new URLSearchParams();
+      if (overdue) params.set('overdue', 'true');
+      if (tag !== undefined) params.set('tag', tag);
+      const query = params.toString();
+      const path = query ? `/tasks?${query}` : '/tasks';
       return request(baseUrl, path, { method: 'GET' }, fetchImpl);
     },
 

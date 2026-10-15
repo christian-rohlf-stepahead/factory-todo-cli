@@ -8,12 +8,13 @@ export function formatTask(task) {
 }
 
 const ADD_USAGE = 'Usage: todo add <title> [--due YYYY-MM-DD] [--tag <tag>]...';
+const LIST_USAGE = 'Usage: todo list [--overdue] [--tag <tag>]';
 
 const USAGE = `Usage: todo <command> [arguments]
 
 Commands:
   add <title> [--due YYYY-MM-DD] [--tag <tag>]...   Add a new task, optionally with a due date and tags
-  list [--overdue]                                  List all tasks, or only overdue ones
+  list [--overdue] [--tag <tag>]                    List all tasks, or only overdue/tagged ones
   complete <id>                                     Mark a task as done
   reopen <id>                                       Mark a task as not done
   delete <id>                                       Delete a task`;
@@ -54,8 +55,19 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
       }
 
       case 'list': {
-        const overdue = args.includes('--overdue');
-        const tasks = await client.listTasks({ overdue });
+        let overdue = false;
+        let tag;
+        for (let i = 0; i < args.length; i++) {
+          if (args[i] === '--overdue') {
+            overdue = true;
+          } else if (args[i] === '--tag') {
+            tag = args[++i];
+            if (!tag) {
+              throw new Error(LIST_USAGE);
+            }
+          }
+        }
+        const tasks = await client.listTasks({ overdue, tag });
         if (tasks.length === 0) {
           stdout('No tasks.');
         } else {
