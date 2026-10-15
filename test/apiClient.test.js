@@ -43,6 +43,20 @@ test('addTask sends the due date when one is given', async () => {
   assert.deepEqual(task, { id: 1, title: 'Renew passport', done: false, due: '2026-11-01' });
 });
 
+test('addTask sends tags when given', async () => {
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return jsonResponse(201, { id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.addTask('Buy milk', undefined, ['home', 'urgent']);
+
+  assert.deepEqual(JSON.parse(capturedOptions.body), { title: 'Buy milk', tags: ['home', 'urgent'] });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] });
+});
+
 test('listTasks returns the array of tasks', async () => {
   const fetchImpl = async () => jsonResponse(200, [{ id: 1, title: 'Buy milk', done: false }]);
   const client = createApiClient('http://localhost:3000', fetchImpl);
@@ -64,6 +78,33 @@ test('listTasks requests the overdue filter when asked', async () => {
 
   assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true');
   assert.deepEqual(tasks, [{ id: 2, title: 'Renew passport', done: false, due: '2026-01-01' }]);
+});
+
+test('listTasks requests the tag filter when asked', async () => {
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return jsonResponse(200, [{ id: 1, title: 'Buy milk', done: false, tags: ['home'] }]);
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const tasks = await client.listTasks({ tag: 'home' });
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?tag=home');
+  assert.deepEqual(tasks, [{ id: 1, title: 'Buy milk', done: false, tags: ['home'] }]);
+});
+
+test('listTasks combines the overdue and tag filters when both are asked', async () => {
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return jsonResponse(200, []);
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  await client.listTasks({ overdue: true, tag: 'home' });
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true&tag=home');
 });
 
 test('setTaskDone sends a PATCH with the desired status', async () => {

@@ -78,6 +78,75 @@ test('add --due with an invalid date surfaces the API error and creates no todo'
   assert.deepEqual(err, ['Error: due must be a valid YYYY-MM-DD date']);
 });
 
+test('add --tag sends the tag and shows it on the created task', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let capturedBody;
+  const fetchImpl = async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      status: 201,
+      statusText: 'Created',
+      json: async () => ({ id: 1, title: 'Buy milk', done: false, tags: ['home'] }),
+    };
+  };
+
+  const exitCode = await run(
+    ['add', 'Buy', 'milk', '--tag', 'home'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(capturedBody, { title: 'Buy milk', tags: ['home'] });
+  assert.deepEqual(out, ['Added task 1  [ ] Buy milk (tags: home)']);
+  assert.deepEqual(err, []);
+});
+
+test('add --tag given twice sends both tags', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let capturedBody;
+  const fetchImpl = async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      status: 201,
+      statusText: 'Created',
+      json: async () => ({ id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] }),
+    };
+  };
+
+  const exitCode = await run(
+    ['add', 'Buy', 'milk', '--tag', 'home', '--tag', 'urgent'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(capturedBody, { title: 'Buy milk', tags: ['home', 'urgent'] });
+  assert.deepEqual(out, ['Added task 1  [ ] Buy milk (tags: home, urgent)']);
+  assert.deepEqual(err, []);
+});
+
+test('add without --tag sends no tags field', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let capturedBody;
+  const fetchImpl = async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      status: 201,
+      statusText: 'Created',
+      json: async () => ({ id: 1, title: 'Buy milk', done: false, tags: [] }),
+    };
+  };
+
+  const exitCode = await run(['add', 'Buy', 'milk'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(capturedBody, { title: 'Buy milk' });
+  assert.deepEqual(out, ['Added task 1  [ ] Buy milk']);
+  assert.deepEqual(err, []);
+});
+
 test('list shows due date when present and nothing extra when absent', async () => {
   const { stdout, stderr, out } = captureOutput();
   const fetchImpl = async () => ({
@@ -134,6 +203,62 @@ test('list prints each task with ID, title, and status', async () => {
   assert.deepEqual(out, ['1  [ ] Buy milk', '2  [x] Clean house']);
 });
 
+test('list shows tags when present and nothing extra when absent', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ([
+      { id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] },
+      { id: 2, title: 'Clean house', done: true, tags: [] },
+    ]),
+  });
+
+  const exitCode = await run(['list'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(out, ['1  [ ] Buy milk (tags: home, urgent)', '2  [x] Clean house']);
+});
+
+test('list --tag calls the tag filter and prints exactly what the API returns', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ([{ id: 1, title: 'Buy milk', done: false, tags: ['home'] }]),
+    };
+  };
+
+  const exitCode = await run(['list', '--tag', 'home'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?tag=home');
+  assert.deepEqual(out, ['1  [ ] Buy milk (tags: home)']);
+});
+
+test('list --overdue --tag combines both filters', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return { ok: true, status: 200, statusText: 'OK', json: async () => [] };
+  };
+
+  const exitCode = await run(
+    ['list', '--overdue', '--tag', 'home'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true&tag=home');
+  assert.deepEqual(out, ['No tasks.']);
+});
+
 test('list reports when there are no tasks', async () => {
   const { stdout, stderr, out } = captureOutput();
   const fetchImpl = async () => ({ ok: true, status: 200, statusText: 'OK', json: async () => [] });
@@ -159,6 +284,21 @@ test('complete marks a task done', async () => {
   assert.deepEqual(out, ['Completed task 1  [x] Buy milk']);
 });
 
+test('complete shows the task\'s tags when it has any', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ({ id: 1, title: 'Buy milk', done: true, tags: ['home'] }),
+  });
+
+  const exitCode = await run(['complete', '1'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(out, ['Completed task 1  [x] Buy milk (tags: home)']);
+});
+
 test('reopen marks a task not done', async () => {
   const { stdout, stderr, out } = captureOutput();
   let capturedBody;
@@ -172,6 +312,21 @@ test('reopen marks a task not done', async () => {
   assert.equal(exitCode, 0);
   assert.deepEqual(capturedBody, { done: false });
   assert.deepEqual(out, ['Reopened task 1  [ ] Buy milk']);
+});
+
+test('reopen shows the task\'s tags when it has any', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ({ id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] }),
+  });
+
+  const exitCode = await run(['reopen', '1'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(out, ['Reopened task 1  [ ] Buy milk (tags: home, urgent)']);
 });
 
 test('delete removes a task by id', async () => {
