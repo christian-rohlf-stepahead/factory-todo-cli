@@ -57,6 +57,34 @@ test('addTask sends tags when given', async () => {
   assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] });
 });
 
+test('AC1: addTask sends the priority when one is given', async () => {
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return jsonResponse(201, { id: 1, title: 'Ship the release', done: false, priority: 'high' });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.addTask('Ship the release', undefined, undefined, 'high');
+
+  assert.deepEqual(JSON.parse(capturedOptions.body), { title: 'Ship the release', priority: 'high' });
+  assert.deepEqual(task, { id: 1, title: 'Ship the release', done: false, priority: 'high' });
+});
+
+test('AC2: addTask sends no priority field when none is given', async () => {
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return jsonResponse(201, { id: 1, title: 'Buy milk', done: false, priority: 'normal' });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.addTask('Buy milk');
+
+  assert.deepEqual(JSON.parse(capturedOptions.body), { title: 'Buy milk' });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, priority: 'normal' });
+});
+
 test('listTasks returns the array of tasks', async () => {
   const fetchImpl = async () => jsonResponse(200, [{ id: 1, title: 'Buy milk', done: false }]);
   const client = createApiClient('http://localhost:3000', fetchImpl);
@@ -105,6 +133,37 @@ test('listTasks combines the overdue and tag filters when both are asked', async
   await client.listTasks({ overdue: true, tag: 'home' });
 
   assert.equal(capturedUrl, 'http://localhost:3000/tasks?overdue=true&tag=home');
+});
+
+test('AC8: listTasks requests the priority sort when asked', async () => {
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return jsonResponse(200, []);
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  await client.listTasks({ sort: 'priority' });
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks?sort=priority');
+});
+
+test('AC4: updateTaskPriority sends a PATCH with the new priority', async () => {
+  let capturedUrl;
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedUrl = url;
+    capturedOptions = options;
+    return jsonResponse(200, { id: 1, title: 'Buy milk', done: false, priority: 'high' });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.updateTaskPriority(1, 'high');
+
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks/1');
+  assert.equal(capturedOptions.method, 'PATCH');
+  assert.deepEqual(JSON.parse(capturedOptions.body), { priority: 'high' });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, priority: 'high' });
 });
 
 test('setTaskDone sends a PATCH with the desired status', async () => {

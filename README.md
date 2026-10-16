@@ -22,9 +22,12 @@ export TODO_API_URL=http://localhost:3000   # the address your todo-api is liste
 node bin/todo.js add "Buy milk"
 node bin/todo.js add "Renew passport" --due 2026-11-01
 node bin/todo.js add "Buy milk" --tag home --tag urgent
+node bin/todo.js add "Ship the release" --priority high
 node bin/todo.js list
 node bin/todo.js list --overdue
 node bin/todo.js list --tag home
+node bin/todo.js list --sort priority
+node bin/todo.js update 1 --priority high
 node bin/todo.js complete 1
 node bin/todo.js reopen 1
 node bin/todo.js delete 1
@@ -32,26 +35,33 @@ node bin/todo.js delete 1
 
 ## Commands
 
-| Command                                                | Description                                            |
-|---------------------------------------------------------|----------------------------------------------------------|
-| `add <title> [--due YYYY-MM-DD] [--tag <tag>]...`      | Create a new task, optionally with a due date and tags. |
-| `list [--overdue] [--tag <tag>]`                       | Show every task, or only the overdue/tagged ones.        |
-| `complete <id>`                                        | Mark a task as done.                                     |
-| `reopen <id>`                                          | Mark a task as not done.                                 |
-| `delete <id>`                                          | Delete a task.                                            |
+| Command                                                              | Description                                                        |
+|------------------------------------------------------------------------|------------------------------------------------------------------------|
+| `add <title> [--due YYYY-MM-DD] [--tag <tag>]... [--priority <level>]` | Create a new task, optionally with a due date, tags, and priority. |
+| `list [--overdue] [--tag <tag>] [--sort priority]`                     | Show every task, optionally filtered by overdue/tag or sorted by priority. |
+| `update <id> --priority <level>`                                        | Change an existing task's priority.                                 |
+| `complete <id>`                                                        | Mark a task as done.                                                 |
+| `reopen <id>`                                                          | Mark a task as not done.                                             |
+| `delete <id>`                                                          | Delete a task.                                                        |
 
 `--tag <tag>` may be given more than once on `add` to attach several tags to
-the new task.
+the new task. `--priority <level>` accepts `low`, `normal`, or `high`; the API
+defaults a task to `normal` priority when `--priority` is omitted, and rejects
+any other value.
 
 Tasks are printed as `<id>  [x] <title>` for done tasks and `<id>  [ ] <title>`
-for open tasks. A task with a due date has `(due: YYYY-MM-DD)` appended, and a
-task with tags has `(tags: tag1, tag2)` appended, for example
-`<id>  [ ] <title> (due: 2026-11-01) (tags: home, urgent)`.
+for open tasks. A task with a due date has `(due: YYYY-MM-DD)` appended, a
+task with tags has `(tags: tag1, tag2)` appended, and a task with `low` or
+`high` priority has `(priority: low)` or `(priority: high)` appended (a
+`normal`-priority task shows no priority annotation), for example
+`<id>  [ ] <title> (due: 2026-11-01) (tags: home, urgent) (priority: high)`.
 
 `list --overdue` asks the API for only the todos that are not done and past
 their due date, and prints exactly what it returns. `list --tag <tag>` asks
 the API for only the todos carrying that tag, and prints exactly what it
 returns; combined with `--overdue`, both filters narrow the list together.
+`list --sort priority` asks the API to sort the results by priority and
+prints them in the order returned, without any client-side re-sorting.
 
 If the API can't be reached, or it responds with an error (for example, an
 unknown task ID), the CLI prints a message starting with `Error:` to stderr

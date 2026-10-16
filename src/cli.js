@@ -4,20 +4,23 @@ export function formatTask(task) {
   const marker = task.done ? '[x]' : '[ ]';
   const due = task.due ? ` (due: ${task.due})` : '';
   const tags = task.tags && task.tags.length > 0 ? ` (tags: ${task.tags.join(', ')})` : '';
-  return `${task.id}  ${marker} ${task.title}${due}${tags}`;
+  const priority = task.priority && task.priority !== 'normal' ? ` (priority: ${task.priority})` : '';
+  return `${task.id}  ${marker} ${task.title}${due}${tags}${priority}`;
 }
 
-const ADD_USAGE = 'Usage: todo add <title> [--due YYYY-MM-DD] [--tag <tag>]...';
-const LIST_USAGE = 'Usage: todo list [--overdue] [--tag <tag>]';
+const ADD_USAGE = 'Usage: todo add <title> [--due YYYY-MM-DD] [--tag <tag>]... [--priority <level>]';
+const LIST_USAGE = 'Usage: todo list [--overdue] [--tag <tag>] [--sort priority]';
+const UPDATE_USAGE = 'Usage: todo update <id> --priority <level>';
 
 const USAGE = `Usage: todo <command> [arguments]
 
 Commands:
-  add <title> [--due YYYY-MM-DD] [--tag <tag>]...   Add a new task, optionally with a due date and tags
-  list [--overdue] [--tag <tag>]                    List all tasks, or only overdue/tagged ones
-  complete <id>                                     Mark a task as done
-  reopen <id>                                       Mark a task as not done
-  delete <id>                                       Delete a task`;
+  add <title> [--due YYYY-MM-DD] [--tag <tag>]... [--priority <level>]   Add a new task, optionally with a due date, tags, and priority (low, normal, or high)
+  list [--overdue] [--tag <tag>] [--sort priority]                      List all tasks, optionally filtered by overdue/tag or sorted by priority
+  update <id> --priority <level>                                       Change a task's priority (low, normal, or high)
+  complete <id>                                                        Mark a task as done
+  reopen <id>                                                          Mark a task as not done
+  delete <id>                                                          Delete a task`;
 
 export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stderr = console.error } = {}) {
   const client = createApiClient(baseUrl, fetchImpl);
@@ -27,6 +30,7 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
     switch (command) {
       case 'add': {
         let due;
+        let priority;
         const tags = [];
         const titleArgs = [];
         for (let i = 0; i < args.length; i++) {
@@ -41,6 +45,11 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
               throw new Error(ADD_USAGE);
             }
             tags.push(tag);
+          } else if (args[i] === '--priority') {
+            priority = args[++i];
+            if (!priority) {
+              throw new Error(ADD_USAGE);
+            }
           } else {
             titleArgs.push(args[i]);
           }
@@ -49,7 +58,7 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
         if (!title) {
           throw new Error(ADD_USAGE);
         }
-        const task = await client.addTask(title, due, tags.length > 0 ? tags : undefined);
+        const task = await client.addTask(title, due, tags.length > 0 ? tags : undefined, priority);
         stdout(`Added task ${formatTask(task)}`);
         return 0;
       }
@@ -57,6 +66,7 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
       case 'list': {
         let overdue = false;
         let tag;
+        let sort;
         for (let i = 0; i < args.length; i++) {
           if (args[i] === '--overdue') {
             overdue = true;
@@ -65,14 +75,41 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
             if (!tag) {
               throw new Error(LIST_USAGE);
             }
+          } else if (args[i] === '--sort') {
+            sort = args[++i];
+            if (!sort) {
+              throw new Error(LIST_USAGE);
+            }
           }
         }
-        const tasks = await client.listTasks({ overdue, tag });
+        const tasks = await client.listTasks({ overdue, tag, sort });
         if (tasks.length === 0) {
           stdout('No tasks.');
         } else {
           tasks.forEach((task) => stdout(formatTask(task)));
         }
+        return 0;
+      }
+
+      case 'update': {
+        const id = args[0];
+        if (!id) {
+          throw new Error(UPDATE_USAGE);
+        }
+        let priority;
+        for (let i = 1; i < args.length; i++) {
+          if (args[i] === '--priority') {
+            priority = args[++i];
+            if (!priority) {
+              throw new Error(UPDATE_USAGE);
+            }
+          }
+        }
+        if (!priority) {
+          throw new Error(UPDATE_USAGE);
+        }
+        const task = await client.updateTaskPriority(id, priority);
+        stdout(`Updated task ${formatTask(task)}`);
         return 0;
       }
 
