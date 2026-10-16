@@ -43,10 +43,11 @@ async function request(baseUrl, path, options, fetchImpl) {
 
 export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
   return {
-    addTask(title, due, tags) {
+    addTask(title, due, tags, priority) {
       const body = { title };
       if (due !== undefined) body.due = due;
       if (tags !== undefined) body.tags = tags;
+      if (priority !== undefined) body.priority = priority;
       return request(baseUrl, '/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,10 +55,11 @@ export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
       }, fetchImpl);
     },
 
-    listTasks({ overdue, tag } = {}) {
+    listTasks({ overdue, tag, sort } = {}) {
       const params = new URLSearchParams();
       if (overdue) params.set('overdue', 'true');
       if (tag !== undefined) params.set('tag', tag);
+      if (sort !== undefined) params.set('sort', sort);
       const query = params.toString();
       const path = query ? `/tasks?${query}` : '/tasks';
       return request(baseUrl, path, { method: 'GET' }, fetchImpl);
@@ -68,6 +70,14 @@ export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ done }),
+      }, fetchImpl);
+    },
+
+    updateTaskPriority(id, priority) {
+      return request(baseUrl, `/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority }),
       }, fetchImpl);
     },
 
