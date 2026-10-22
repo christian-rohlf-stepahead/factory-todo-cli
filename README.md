@@ -67,6 +67,21 @@ If the API can't be reached, or it responds with an error (for example, an
 unknown task ID), the CLI prints a message starting with `Error:` to stderr
 and exits with a non-zero status instead of crashing.
 
+## Web terminal
+
+A small Node server serves a page where you can type the same commands (`add`,
+`list`, `update`, `complete`, `reopen`, `delete`) in a browser and see the
+CLI's output, run against `TODO_API_URL` exactly as `bin/todo.js` does
+locally.
+
+```sh
+export TODO_API_URL=http://localhost:3000   # the address your todo-api is listening on
+node bin/web.js                             # listens on PORT (defaults to 3000)
+```
+
+Open the server's address in a browser, type a command into the input box,
+and its output appears below, line by line.
+
 ## Running the tests
 
 ```sh
