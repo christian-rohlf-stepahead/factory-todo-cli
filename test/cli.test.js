@@ -438,18 +438,18 @@ test('list reports when there are no tasks', async () => {
   assert.deepEqual(out, ['No tasks.']);
 });
 
-test('complete marks a task done', async () => {
+test('complete sends and reads the completed field the API uses, not done', async () => {
   const { stdout, stderr, out } = captureOutput();
   let capturedBody;
   const fetchImpl = async (url, options) => {
     capturedBody = JSON.parse(options.body);
-    return { ok: true, status: 200, statusText: 'OK', json: async () => ({ id: 1, title: 'Buy milk', done: true }) };
+    return { ok: true, status: 200, statusText: 'OK', json: async () => ({ id: 1, title: 'Buy milk', completed: true }) };
   };
 
   const exitCode = await run(['complete', '1'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
 
   assert.equal(exitCode, 0);
-  assert.deepEqual(capturedBody, { done: true });
+  assert.deepEqual(capturedBody, { completed: true });
   assert.deepEqual(out, ['Completed task 1  [x] Buy milk']);
 });
 
@@ -459,7 +459,7 @@ test('complete shows the task\'s tags when it has any', async () => {
     ok: true,
     status: 200,
     statusText: 'OK',
-    json: async () => ({ id: 1, title: 'Buy milk', done: true, tags: ['home'] }),
+    json: async () => ({ id: 1, title: 'Buy milk', completed: true, tags: ['home'] }),
   });
 
   const exitCode = await run(['complete', '1'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
@@ -468,18 +468,18 @@ test('complete shows the task\'s tags when it has any', async () => {
   assert.deepEqual(out, ['Completed task 1  [x] Buy milk (tags: home)']);
 });
 
-test('reopen marks a task not done', async () => {
+test('reopen sends and reads the completed field the API uses, not done', async () => {
   const { stdout, stderr, out } = captureOutput();
   let capturedBody;
   const fetchImpl = async (url, options) => {
     capturedBody = JSON.parse(options.body);
-    return { ok: true, status: 200, statusText: 'OK', json: async () => ({ id: 1, title: 'Buy milk', done: false }) };
+    return { ok: true, status: 200, statusText: 'OK', json: async () => ({ id: 1, title: 'Buy milk', completed: false }) };
   };
 
   const exitCode = await run(['reopen', '1'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
 
   assert.equal(exitCode, 0);
-  assert.deepEqual(capturedBody, { done: false });
+  assert.deepEqual(capturedBody, { completed: false });
   assert.deepEqual(out, ['Reopened task 1  [ ] Buy milk']);
 });
 
@@ -489,7 +489,7 @@ test('reopen shows the task\'s tags when it has any', async () => {
     ok: true,
     status: 200,
     statusText: 'OK',
-    json: async () => ({ id: 1, title: 'Buy milk', done: false, tags: ['home', 'urgent'] }),
+    json: async () => ({ id: 1, title: 'Buy milk', completed: false, tags: ['home', 'urgent'] }),
   });
 
   const exitCode = await run(['reopen', '1'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });

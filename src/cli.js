@@ -1,7 +1,8 @@
 import { createApiClient } from './apiClient.js';
 
 export function formatTask(task) {
-  const marker = task.done ? '[x]' : '[ ]';
+  const done = task.completed ?? task.done;
+  const marker = done ? '[x]' : '[ ]';
   const due = task.due ? ` (due: ${task.due})` : '';
   const tags = task.tags && task.tags.length > 0 ? ` (tags: ${task.tags.join(', ')})` : '';
   const priority = task.priority && task.priority !== 'normal' ? ` (priority: ${task.priority})` : '';

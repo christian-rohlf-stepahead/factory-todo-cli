@@ -166,13 +166,13 @@ test('AC4: updateTaskPriority sends a PATCH with the new priority', async () => 
   assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, priority: 'high' });
 });
 
-test('setTaskDone sends a PATCH with the desired status', async () => {
+test('setTaskDone sends a PATCH with the completed field the API uses, not done', async () => {
   let capturedUrl;
   let capturedOptions;
   const fetchImpl = async (url, options) => {
     capturedUrl = url;
     capturedOptions = options;
-    return jsonResponse(200, { id: 1, title: 'Buy milk', done: true });
+    return jsonResponse(200, { id: 1, title: 'Buy milk', completed: true });
   };
   const client = createApiClient('http://localhost:3000', fetchImpl);
 
@@ -180,8 +180,8 @@ test('setTaskDone sends a PATCH with the desired status', async () => {
 
   assert.equal(capturedUrl, 'http://localhost:3000/tasks/1');
   assert.equal(capturedOptions.method, 'PATCH');
-  assert.deepEqual(JSON.parse(capturedOptions.body), { done: true });
-  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: true });
+  assert.deepEqual(JSON.parse(capturedOptions.body), { completed: true });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', completed: true });
 });
 
 test('deleteTask sends a DELETE and tolerates an empty response body', async () => {
