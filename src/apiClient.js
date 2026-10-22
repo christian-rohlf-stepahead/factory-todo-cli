@@ -69,7 +69,7 @@ export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
       return request(baseUrl, `/tasks/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ done }),
+        body: JSON.stringify({ completed: done }),
       }, fetchImpl);
     },
 
