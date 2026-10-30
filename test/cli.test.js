@@ -128,6 +128,88 @@ test('AC4: update sends a PATCH with the new priority and shows it on the task',
   assert.deepEqual(err, []);
 });
 
+test('AC1: update --note sets the note and the CLI confirms the update', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let capturedUrl;
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedUrl = url;
+    capturedOptions = options;
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({
+        id: 1,
+        title: 'Buy milk',
+        done: false,
+        note: 'Ask Sam about the delivery window.',
+      }),
+    };
+  };
+
+  const exitCode = await run(
+    ['update', '1', '--note', 'Ask Sam about the delivery window.'],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(capturedUrl, 'http://localhost:3000/tasks/1');
+  assert.equal(capturedOptions.method, 'PATCH');
+  assert.deepEqual(JSON.parse(capturedOptions.body), { note: 'Ask Sam about the delivery window.' });
+  assert.deepEqual(out, ['Updated task 1  [ ] Buy milk\n  note: Ask Sam about the delivery window.']);
+  assert.deepEqual(err, []);
+});
+
+test('AC2: update --note "" clears the note', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({ id: 1, title: 'Buy milk', done: false, note: '' }),
+    };
+  };
+
+  const exitCode = await run(
+    ['update', '1', '--note', ''],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(JSON.parse(capturedOptions.body), { note: '' });
+  assert.deepEqual(out, ['Updated task 1  [ ] Buy milk']);
+  assert.deepEqual(err, []);
+});
+
+test('AC3: update --note over 500 characters shows the API error message instead of crashing', async () => {
+  const { stdout, stderr, out, err } = captureOutput();
+  let capturedBody;
+  const longNote = 'a'.repeat(501);
+  const fetchImpl = async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      json: async () => ({ error: '"note" must be a string of at most 500 characters.' }),
+    };
+  };
+
+  const exitCode = await run(
+    ['update', '1', '--note', longNote],
+    { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr },
+  );
+
+  assert.deepEqual(capturedBody, { note: longNote });
+  assert.equal(exitCode, 1);
+  assert.deepEqual(out, []);
+  assert.deepEqual(err, ['Error: "note" must be a string of at most 500 characters.']);
+});
+
 test('add --due sends the due date and shows it on the created task', async () => {
   const { stdout, stderr, out, err } = captureOutput();
   let capturedBody;
@@ -388,6 +470,33 @@ test('list shows tags when present and nothing extra when absent', async () => {
 
   assert.equal(exitCode, 0);
   assert.deepEqual(out, ['1  [ ] Buy milk (tags: home, urgent)', '2  [x] Clean house']);
+});
+
+test('AC4: list shows a note beneath its title when present and nothing extra when absent', async () => {
+  const { stdout, stderr, out } = captureOutput();
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ([
+      {
+        id: 1,
+        title: 'Renew the parking permit',
+        done: false,
+        due: '2026-10-22',
+        note: 'Ask Sam at the front desk, he has the renewal form and the office stamp needed to submit it to the garage downstairs before Friday.',
+      },
+      { id: 2, title: 'Water the office plants', done: true, note: '' },
+    ]),
+  });
+
+  const exitCode = await run(['list'], { baseUrl: 'http://localhost:3000', fetchImpl, stdout, stderr });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(out, [
+    '1  [ ] Renew the parking permit (due: 2026-10-22)\n  note: Ask Sam at the front desk, he has the renewal form and the office stamp needed to submit it to the garage downstairs before Friday.',
+    '2  [x] Water the office plants',
+  ]);
 });
 
 test('list --tag calls the tag filter and prints exactly what the API returns', async () => {
