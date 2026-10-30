@@ -166,6 +166,34 @@ test('AC4: updateTaskPriority sends a PATCH with the new priority', async () => 
   assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, priority: 'high' });
 });
 
+test('updateTask sends a PATCH with the new note', async () => {
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return jsonResponse(200, { id: 1, title: 'Buy milk', done: false, note: 'Ask Sam.' });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  const task = await client.updateTask(1, { note: 'Ask Sam.' });
+
+  assert.equal(capturedOptions.method, 'PATCH');
+  assert.deepEqual(JSON.parse(capturedOptions.body), { note: 'Ask Sam.' });
+  assert.deepEqual(task, { id: 1, title: 'Buy milk', done: false, note: 'Ask Sam.' });
+});
+
+test('updateTask sends note: "" to clear a note, distinct from omitting it', async () => {
+  let capturedOptions;
+  const fetchImpl = async (url, options) => {
+    capturedOptions = options;
+    return jsonResponse(200, { id: 1, title: 'Buy milk', done: false, note: '' });
+  };
+  const client = createApiClient('http://localhost:3000', fetchImpl);
+
+  await client.updateTask(1, { note: '' });
+
+  assert.deepEqual(JSON.parse(capturedOptions.body), { note: '' });
+});
+
 test('setTaskDone sends a PATCH with the completed field the API uses, not done', async () => {
   let capturedUrl;
   let capturedOptions;

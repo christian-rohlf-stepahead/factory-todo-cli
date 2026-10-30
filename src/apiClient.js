@@ -73,12 +73,19 @@ export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
       }, fetchImpl);
     },
 
-    updateTaskPriority(id, priority) {
+    updateTask(id, { priority, note } = {}) {
+      const body = {};
+      if (priority !== undefined) body.priority = priority;
+      if (note !== undefined) body.note = note;
       return request(baseUrl, `/tasks/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priority }),
+        body: JSON.stringify(body),
       }, fetchImpl);
+    },
+
+    updateTaskPriority(id, priority) {
+      return this.updateTask(id, { priority });
     },
 
     deleteTask(id) {

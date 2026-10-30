@@ -28,6 +28,8 @@ node bin/todo.js list --overdue
 node bin/todo.js list --tag home
 node bin/todo.js list --sort priority
 node bin/todo.js update 1 --priority high
+node bin/todo.js update 1 --note "Ask Sam about the delivery window."
+node bin/todo.js update 1 --note ""
 node bin/todo.js complete 1
 node bin/todo.js reopen 1
 node bin/todo.js delete 1
@@ -39,7 +41,7 @@ node bin/todo.js delete 1
 |------------------------------------------------------------------------|------------------------------------------------------------------------|
 | `add <title> [--due YYYY-MM-DD] [--tag <tag>]... [--priority <level>]` | Create a new task, optionally with a due date, tags, and priority. |
 | `list [--overdue] [--tag <tag>] [--sort priority]`                     | Show every task, optionally filtered by overdue/tag or sorted by priority. |
-| `update <id> --priority <level>`                                        | Change an existing task's priority.                                 |
+| `update <id> [--priority <level>] [--note "<text>"]`                    | Change an existing task's priority and/or note.                    |
 | `complete <id>`                                                        | Mark a task as done.                                                 |
 | `reopen <id>`                                                          | Mark a task as not done.                                             |
 | `delete <id>`                                                          | Delete a task.                                                        |
@@ -47,7 +49,9 @@ node bin/todo.js delete 1
 `--tag <tag>` may be given more than once on `add` to attach several tags to
 the new task. `--priority <level>` accepts `low`, `normal`, or `high`; the API
 defaults a task to `normal` priority when `--priority` is omitted, and rejects
-any other value.
+any other value. `--note "<text>"` on `update` sets the task's free-text note
+(up to 500 characters); passing `--note ""` clears it. A note over 500
+characters is rejected with the API's error message.
 
 Tasks are printed as `<id>  [x] <title>` for done tasks and `<id>  [ ] <title>`
 for open tasks. A task with a due date has `(due: YYYY-MM-DD)` appended, a
@@ -55,6 +59,8 @@ task with tags has `(tags: tag1, tag2)` appended, and a task with `low` or
 `high` priority has `(priority: low)` or `(priority: high)` appended (a
 `normal`-priority task shows no priority annotation), for example
 `<id>  [ ] <title> (due: 2026-11-01) (tags: home, urgent) (priority: high)`.
+A task with a note shows it on its own line beneath the title, as
+`  note: <text>`; a task with no note shows nothing extra.
 
 `list --overdue` asks the API for only the todos that are not done and past
 their due date, and prints exactly what it returns. `list --tag <tag>` asks
