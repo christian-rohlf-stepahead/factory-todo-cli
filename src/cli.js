@@ -6,19 +6,20 @@ export function formatTask(task) {
   const due = task.due ? ` (due: ${task.due})` : '';
   const tags = task.tags && task.tags.length > 0 ? ` (tags: ${task.tags.join(', ')})` : '';
   const priority = task.priority && task.priority !== 'normal' ? ` (priority: ${task.priority})` : '';
-  return `${task.id}  ${marker} ${task.title}${due}${tags}${priority}`;
+  const note = task.note ? `\n  note: ${task.note}` : '';
+  return `${task.id}  ${marker} ${task.title}${due}${tags}${priority}${note}`;
 }
 
 const ADD_USAGE = 'Usage: todo add <title> [--due YYYY-MM-DD] [--tag <tag>]... [--priority <level>]';
 const LIST_USAGE = 'Usage: todo list [--overdue] [--tag <tag>] [--sort priority]';
-const UPDATE_USAGE = 'Usage: todo update <id> --priority <level>';
+const UPDATE_USAGE = 'Usage: todo update <id> [--priority <level>] [--note "<text>"]';
 
 const USAGE = `Usage: todo <command> [arguments]
 
 Commands:
   add <title> [--due YYYY-MM-DD] [--tag <tag>]... [--priority <level>]   Add a new task, optionally with a due date, tags, and priority (low, normal, or high)
   list [--overdue] [--tag <tag>] [--sort priority]                      List all tasks, optionally filtered by overdue/tag or sorted by priority
-  update <id> --priority <level>                                       Change a task's priority (low, normal, or high)
+  update <id> [--priority <level>] [--note "<text>"]                    Change a task's priority (low, normal, or high) and/or note (empty string clears it)
   complete <id>                                                        Mark a task as done
   reopen <id>                                                          Mark a task as not done
   delete <id>                                                          Delete a task`;
@@ -98,18 +99,24 @@ export async function run(argv, { baseUrl, fetchImpl, stdout = console.log, stde
           throw new Error(UPDATE_USAGE);
         }
         let priority;
+        let note;
         for (let i = 1; i < args.length; i++) {
           if (args[i] === '--priority') {
             priority = args[++i];
             if (!priority) {
               throw new Error(UPDATE_USAGE);
             }
+          } else if (args[i] === '--note') {
+            note = args[++i];
+            if (note === undefined) {
+              throw new Error(UPDATE_USAGE);
+            }
           }
         }
-        if (!priority) {
+        if (!priority && note === undefined) {
           throw new Error(UPDATE_USAGE);
         }
-        const task = await client.updateTaskPriority(id, priority);
+        const task = await client.updateTask(id, { priority, note });
         stdout(`Updated task ${formatTask(task)}`);
         return 0;
       }
