@@ -84,6 +84,10 @@ export function createApiClient(baseUrl, fetchImpl = globalThis.fetch) {
       }, fetchImpl);
     },
 
+    updateTaskPriority(id, priority) {
+      return this.updateTask(id, { priority });
+    },
+
     deleteTask(id) {
       return request(baseUrl, `/tasks/${id}`, { method: 'DELETE' }, fetchImpl);
     },

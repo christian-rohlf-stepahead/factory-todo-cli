@@ -148,7 +148,7 @@ test('AC8: listTasks requests the priority sort when asked', async () => {
   assert.equal(capturedUrl, 'http://localhost:3000/tasks?sort=priority');
 });
 
-test('AC4: updateTask sends a PATCH with the new priority', async () => {
+test('AC4: updateTaskPriority sends a PATCH with the new priority', async () => {
   let capturedUrl;
   let capturedOptions;
   const fetchImpl = async (url, options) => {
@@ -158,7 +158,7 @@ test('AC4: updateTask sends a PATCH with the new priority', async () => {
   };
   const client = createApiClient('http://localhost:3000', fetchImpl);
 
-  const task = await client.updateTask(1, { priority: 'high' });
+  const task = await client.updateTaskPriority(1, 'high');
 
   assert.equal(capturedUrl, 'http://localhost:3000/tasks/1');
   assert.equal(capturedOptions.method, 'PATCH');
